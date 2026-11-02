@@ -53,6 +53,10 @@ textarea{resize:vertical;min-height:64px;font-family:var(--f-en);font-weight:600
 .row3 select{font:inherit;width:100%;border:2px solid var(--line);border-radius:14px;padding:10px 12px;background:#fff;color:var(--ink)}
 .cfilter{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .mini.warn{color:var(--red)}
+.editf{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;background:var(--butter);border-radius:14px;padding:10px 12px;margin-bottom:8px}
+.editf label{display:flex;flex-direction:column;font-size:14px;gap:2px}
+.editf input,.editf select{font:inherit;border:2px solid var(--line);border-radius:10px;padding:5px 8px;width:90px;background:#fff}
+.editf input.nm{width:130px}
 .teacher-link{background:none;border:none;color:var(--muted);text-decoration:underline;font-size:15px}
 .demo{background:var(--butter);border-radius:14px;padding:8px 12px;font-size:15px;text-align:left}
 
@@ -266,14 +270,14 @@ td.num{font-variant-numeric:tabular-nums;font-weight:700}
       <div class="tsum" id="tsum"></div>
       <div class="cfilter" id="cfilter"></div>
       <div class="card tablewrap"><table><thead><tr><th>학년·반</th><th>번호</th><th>이름</th><th>진행</th><th>문장</th><th>최근 저장</th><th>제출</th><th>보기</th></tr></thead><tbody id="tbody"></tbody></table></div>
-      <p class="note">'대본'을 누르면 학생이 쓴 문장을, '듣기'를 누르면 제출한 녹음을 확인할 수 있어요. 학생이 비밀번호를 잊으면 '비밀번호 초기화'를 누르고, 학생은 같은 학년·반·번호·이름에 새 비밀번호를 정해 들어오면 돼요. 번호를 잘못 넣어 생긴 기록은 '기록 삭제'로 지워요.</p>
+      <p class="note">'대본'을 누르면 학생이 쓴 문장을, '듣기'를 누르면 제출한 녹음을 확인할 수 있어요. 학생이 비밀번호를 잊으면 '비밀번호 초기화'를 누르고, 학생은 같은 학년·반·번호·이름에 새 비밀번호를 정해 들어오면 돼요. 학년·반·번호나 이름을 잘못 넣은 학생은 '정보 수정'으로 고치면 쓴 내용이 그대로 남아요. 필요 없는 기록만 '기록 삭제'로 지워요.</p>
     </div>
   </section>
 </div>
 
 <script>
 /* ↓↓↓ 선생님: 구글 Apps Script 웹 앱 주소를 따옴표 안에 붙여 넣으세요 ↓↓↓ */
-const API_URL = "https://script.google.com/macros/s/AKfycbx04tmZFEvUxd8AUldH5--wjtD-PkVfTXLztT5FEYTUlu_gGB3kNBlehH_xIkf1UZ4/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbweyAQEmri7puvm2AXFgxQVw_GSlWMd8a5lRuBbbTt2NOK7bf2GqMV8B3t5OTRvcNis/exec";
 /* ↑↑↑ --------------------------------------------------------------- ↑↑↑ */
 const DEMO = !API_URL;
 
@@ -323,6 +327,7 @@ function demoApi(a,p){
   if(a==="teacherAudio"){const b=demoAudio[K];return b?{audio:b,mime:st[K].mime}:{error:"체험 모드에서는 새로고침하면 녹음이 사라져요."};}
   if(a==="teacherReset"){if(st[K]){st[K].pin="";save();}return {ok:true};}
   if(a==="teacherDelete"){delete st[K];save();return {ok:true};}
+  if(a==="teacherEdit"){const NK=p.newGrade+"-"+p.newCls+"-"+p.newNum;if(NK!==K&&st[NK])return {error:"이미 다른 기록이 있어요."};const x=st[K];if(!x)return {error:"학생을 찾을 수 없어요."};delete st[K];x.name=p.newName;st[NK]=x;save();return {ok:true};}
   return {error:"알 수 없는 요청"};
 }
 
@@ -559,7 +564,7 @@ function renderTeacher(list){if(list)tList=list;list=tList;
     const st=el("td");st.appendChild(el("span","pill "+(x.submittedAt?"ok":"wip"),x.submittedAt?"제출":`${p.step||1}단계`));tr.appendChild(st);
     tr.append(el("td",null,`${n} / 5`),el("td","muted",x.updated||""),el("td",null,x.submittedAt||"—"));
     const act=el("td");const a=el("div","acts");
-    const bS=el("button","mini","대본"),bP=el("button","mini","▶ 듣기"),bX=el("button","mini","비밀번호 초기화"),bD=el("button","mini warn","기록 삭제");[bS,bP,bX,bD].forEach(b=>{b.type="button";a.appendChild(b);});
+    const bS=el("button","mini","대본"),bP=el("button","mini","▶ 듣기"),bE=el("button","mini","정보 수정"),bX=el("button","mini","비밀번호 초기화"),bD=el("button","mini warn","기록 삭제");[bS,bP,bE,bX,bD].forEach(b=>{b.type="button";a.appendChild(b);});
     bP.disabled=!x.hasAudio;act.appendChild(a);tr.appendChild(act);tb.appendChild(tr);
     const dt=el("tr","detail");dt.hidden=true;const dd=el("td");dd.colSpan=8;dt.appendChild(dd);tb.appendChild(dt);
     bS.onclick=()=>{dt.hidden=!dt.hidden;if(dd.childNodes.length)return;
@@ -574,6 +579,22 @@ function renderTeacher(list){if(list)tList=list;list=tList;
     bX.onclick=async()=>{
       if(!bX.dataset.sure){bX.dataset.sure="1";bX.textContent="정말 초기화? 한 번 더";return;}
       const r=await api("teacherReset",{password:teacherPw,grade:x.grade,cls:x.cls,num:x.num,name:x.name});bX.textContent=r.error?"실패":"초기화 완료";bX.disabled=true;};
+    bE.onclick=()=>{
+      dt.hidden=false;if(dd.querySelector(".editf"))return;
+      const f=el("form","editf");
+      const mk=(lab,inp)=>{const l=el("label",null,lab);l.appendChild(inp);f.appendChild(l);return inp;};
+      const sg=document.createElement("select");[1,2,3].forEach(g=>{const o=el("option",null,g+"학년");o.value=g;sg.appendChild(o);});sg.value=x.grade||1;mk("학년",sg);
+      const ic=el("input");ic.type="number";ic.min=1;ic.max=20;ic.value=x.cls||"";mk("반",ic);
+      const inn=el("input");inn.type="number";inn.min=1;inn.max=60;inn.value=x.num;mk("번호",inn);
+      const inm=el("input","nm");inm.type="text";inm.value=x.name;mk("이름",inm);
+      const ok=el("button","mini on","저장");ok.type="submit";const no=el("button","mini","취소");no.type="button";const msg=el("span","confirm");
+      f.append(ok,no,msg);dd.prepend(f);
+      no.onclick=()=>f.remove();
+      f.addEventListener("submit",async e=>{e.preventDefault();ok.disabled=true;msg.textContent="저장 중…";
+        const r=await api("teacherEdit",{password:teacherPw,grade:x.grade,cls:x.cls,num:x.num,name:x.name,newGrade:sg.value,newCls:ic.value,newNum:inn.value,newName:inm.value.replace(/\s+/g,"")});
+        ok.disabled=false;if(r.error){msg.textContent=r.error;return;}
+        const r2=await api("teacherList",{password:teacherPw});if(!r2.error)renderTeacher(r2.students);});
+    };
     bD.onclick=async()=>{
       if(!bD.dataset.sure){bD.dataset.sure="1";bD.textContent="녹음까지 삭제돼요. 정말? 한 번 더";return;}
       bD.disabled=true;const r=await api("teacherDelete",{password:teacherPw,grade:x.grade,cls:x.cls,num:x.num,name:x.name});
