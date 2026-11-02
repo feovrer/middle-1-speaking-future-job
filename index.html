@@ -49,7 +49,10 @@ textarea{resize:vertical;min-height:64px;font-family:var(--f-en);font-weight:600
 .login .sub{font-family:var(--f-display);font-size:24px;color:var(--muted)}
 .login form{display:flex;flex-direction:column;gap:12px;text-align:left}
 .login label{font-size:16px;font-weight:700;display:flex;flex-direction:column;gap:4px}
-.row2{display:grid;grid-template-columns:1fr 2fr;gap:10px}
+.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.row3 select{font:inherit;width:100%;border:2px solid var(--line);border-radius:14px;padding:10px 12px;background:#fff;color:var(--ink)}
+.cfilter{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.mini.warn{color:var(--red)}
 .teacher-link{background:none;border:none;color:var(--muted);text-decoration:underline;font-size:15px}
 .demo{background:var(--butter);border-radius:14px;padding:8px 12px;font-size:15px;text-align:left}
 
@@ -175,12 +178,14 @@ td.num{font-variant-numeric:tabular-nums;font-weight:700}
     <div class="sub">중1 영어 말하기 수행평가</div>
     <p class="demo" id="demoNote" hidden>🧪 지금은 <b>체험 모드</b>예요. 서버를 연결하기 전이라 기록이 이 기기에만 저장돼요.</p>
     <form id="loginForm" autocomplete="off">
-      <div class="row2">
+      <div class="row3">
+        <label>학년<select id="inGrade" required><option value="1" selected>1학년</option><option value="2">2학년</option><option value="3">3학년</option></select></label>
+        <label>반<input id="inCls" type="number" min="1" max="20" inputmode="numeric" required></label>
         <label>번호<input id="inNum" type="number" min="1" max="60" inputmode="numeric" required></label>
-        <label>이름<input id="inName" type="text" maxlength="20" required></label>
       </div>
+      <label>이름<input id="inName" type="text" maxlength="20" required></label>
       <label>비밀번호 (숫자 5자리)<input id="inPin" type="password" inputmode="numeric" maxlength="5" pattern="\d{5}" required></label>
-      <p class="note">처음 들어올 때 정한 비밀번호가 내 비밀번호가 돼요. 꼭 기억해요! 다음에 같은 번호·이름·비밀번호로 들어오면 하던 곳부터 이어서 할 수 있어요.</p>
+      <p class="note">처음 들어올 때 정한 비밀번호가 내 비밀번호가 돼요. 꼭 기억해요! 다음에 같은 학년·반·번호·이름·비밀번호로 들어오면 하던 곳부터 이어서 할 수 있어요.</p>
       <p class="err" id="loginErr"></p>
       <button class="btn" type="submit" id="loginBtn">입장하기</button>
     </form>
@@ -259,15 +264,16 @@ td.num{font-variant-numeric:tabular-nums;font-weight:700}
         <div class="who"><button class="mini" type="button" id="tRefresh">새로고침</button><button class="mini" type="button" id="tLogout">나가기</button></div>
       </div>
       <div class="tsum" id="tsum"></div>
-      <div class="card tablewrap"><table><thead><tr><th>번호</th><th>이름</th><th>진행</th><th>문장</th><th>최근 저장</th><th>제출</th><th>보기</th></tr></thead><tbody id="tbody"></tbody></table></div>
-      <p class="note">'대본'을 누르면 학생이 쓴 문장을, '듣기'를 누르면 제출한 녹음을 확인할 수 있어요. 학생이 비밀번호를 잊으면 '비밀번호 초기화'를 누르고, 학생은 같은 번호·이름에 새 비밀번호를 정해 들어오면 돼요.</p>
+      <div class="cfilter" id="cfilter"></div>
+      <div class="card tablewrap"><table><thead><tr><th>학년·반</th><th>번호</th><th>이름</th><th>진행</th><th>문장</th><th>최근 저장</th><th>제출</th><th>보기</th></tr></thead><tbody id="tbody"></tbody></table></div>
+      <p class="note">'대본'을 누르면 학생이 쓴 문장을, '듣기'를 누르면 제출한 녹음을 확인할 수 있어요. 학생이 비밀번호를 잊으면 '비밀번호 초기화'를 누르고, 학생은 같은 학년·반·번호·이름에 새 비밀번호를 정해 들어오면 돼요. 번호를 잘못 넣어 생긴 기록은 '기록 삭제'로 지워요.</p>
     </div>
   </section>
 </div>
 
 <script>
 /* ↓↓↓ 선생님: 구글 Apps Script 웹 앱 주소를 따옴표 안에 붙여 넣으세요 ↓↓↓ */
-const API_URL = "https://script.google.com/macros/s/AKfycbwx7AB-h8qlvJ6U4VkuvtqSxOP-MHiBmjNlUjVSigtW_NpbBDru49oqkBlPcLDhj25e/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbx04tmZFEvUxd8AUldH5--wjtD-PkVfTXLztT5FEYTUlu_gGB3kNBlehH_xIkf1UZ4/exec";
 /* ↑↑↑ --------------------------------------------------------------- ↑↑↑ */
 const DEMO = !API_URL;
 
@@ -280,7 +286,7 @@ const SENT=[
 ];
 const OPEN="Hello, everyone.", CLOSE="Thank you for listening.";
 
-let S={token:null,num:null,name:"",progress:null,submittedAt:null};
+let S={token:null,grade:null,cls:null,num:null,name:"",progress:null,submittedAt:null};
 let teacherPw=null;
 const $=s=>document.querySelector(s);
 const show=id=>["vLogin","vTLogin","vStudent","vTeacher"].forEach(v=>$("#"+v).hidden=v!==id);
@@ -301,19 +307,22 @@ const demoAudio={};
 function demoApi(a,p){
   const db=ls.get("fj_demo")||{students:{}};const st=db.students;const now=new Date().toLocaleString("ko-KR",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
   const save=()=>ls.set("fj_demo",db);const who=t=>t&&t.startsWith("demo-")?t.slice(5):null;
-  if(a==="login"){const r=st[p.num];
-    if(r&&r.name!==p.name)return {error:"번호와 이름이 맞지 않아요."};
+  const K=p.grade+"-"+p.cls+"-"+p.num;
+  const info=(k,x)=>{const [g,c,n]=k.split("-").map(Number);return {grade:g,cls:c,num:n,name:x.name,progress:x.progress?JSON.parse(x.progress):null,submittedAt:x.submittedAt||null};};
+  if(a==="login"){const r=st[K];
+    if(r&&r.name!==p.name)return {error:`${p.grade}학년 ${p.cls}반 ${p.num}번은 다른 이름으로 이미 등록돼 있어요. 학년·반·번호를 확인하고, 맞으면 선생님께 말씀드려요.`};
     if(r&&r.pin&&r.pin!==p.pin)return {error:"비밀번호가 달라요."};
-    if(!r)st[p.num]={name:p.name,pin:p.pin,progress:"",step:1,updated:now};else if(!r.pin)r.pin=p.pin;save();
-    const x=st[p.num];return {token:"demo-"+p.num,num:+p.num,name:x.name,progress:x.progress?JSON.parse(x.progress):null,submittedAt:x.submittedAt||null};}
-  if(a==="resume"){const n=who(p.token);const x=st[n];if(!x)return {error:"다시 로그인해 주세요.",relogin:true};return {num:+n,name:x.name,progress:x.progress?JSON.parse(x.progress):null,submittedAt:x.submittedAt||null};}
+    if(!r)st[K]={name:p.name,pin:p.pin,progress:"",step:1,updated:now};else if(!r.pin)r.pin=p.pin;save();
+    return Object.assign({token:"demo-"+K},info(K,st[K]));}
+  if(a==="resume"){const n=who(p.token);const x=st[n];if(!x)return {error:"다시 로그인해 주세요.",relogin:true};return info(n,x);}
   if(a==="save"){const x=st[who(p.token)];if(!x)return {error:"다시 로그인해 주세요.",relogin:true};x.progress=p.progress;x.step=p.step;x.updated=now;save();return {ok:true};}
   if(a==="chat")return {answer:"(체험 모드) 아직 AI가 연결되지 않았어요.\n선생님이 서버를 연결하면 여기에 힌트가 나와요."};
   if(a==="submit"){const n=who(p.token);const x=st[n];x.submittedAt=now;x.script=p.script;x.mime=p.mime;demoAudio[n]=p.audio;save();return {submittedAt:now};}
   if(a.startsWith("teacher")&&p.password!=="1234")return {error:"비밀번호가 달라요."};
-  if(a==="teacherList")return {students:Object.entries(st).map(([n,x])=>({num:+n,name:x.name,step:x.step,progress:x.progress?JSON.parse(x.progress):null,updated:x.updated,submittedAt:x.submittedAt||"",script:x.script||"",hasAudio:!!x.submittedAt})).sort((a,b)=>a.num-b.num)};
-  if(a==="teacherAudio"){const b=demoAudio[p.num];return b?{audio:b,mime:st[p.num].mime}:{error:"체험 모드에서는 새로고침하면 녹음이 사라져요."};}
-  if(a==="teacherReset"){if(st[p.num]){st[p.num].pin="";save();}return {ok:true};}
+  if(a==="teacherList")return {students:Object.entries(st).map(([n,x])=>({...info(n,x),step:x.step,progress:x.progress?JSON.parse(x.progress):null,updated:x.updated,submittedAt:x.submittedAt||"",script:x.script||"",hasAudio:!!x.submittedAt})).sort((a,b)=>a.grade-b.grade||a.cls-b.cls||a.num-b.num)};
+  if(a==="teacherAudio"){const b=demoAudio[K];return b?{audio:b,mime:st[K].mime}:{error:"체험 모드에서는 새로고침하면 녹음이 사라져요."};}
+  if(a==="teacherReset"){if(st[K]){st[K].pin="";save();}return {ok:true};}
+  if(a==="teacherDelete"){delete st[K];save();return {ok:true};}
   return {error:"알 수 없는 요청"};
 }
 
@@ -323,27 +332,28 @@ $("#toTeacher").onclick=()=>{show("vTLogin");$("#inTPw").focus();};
 $("#toStudent").onclick=()=>show("vLogin");
 $("#loginForm").addEventListener("submit",async e=>{
   e.preventDefault();const err=$("#loginErr");err.textContent="";
-  const num=parseInt($("#inNum").value,10),name=$("#inName").value.replace(/\s+/g,"").trim(),pin=$("#inPin").value.trim();
+  const grade=parseInt($("#inGrade").value,10),cls=parseInt($("#inCls").value,10),num=parseInt($("#inNum").value,10),name=$("#inName").value.replace(/\s+/g,"").trim(),pin=$("#inPin").value.trim();
+  if(!(cls>=1&&cls<=20))return err.textContent="반을 확인해 주세요.";
   if(!(num>=1&&num<=60))return err.textContent="번호를 확인해 주세요.";
   if(!name)return err.textContent="이름을 써 주세요.";
   if(!/^\d{5}$/.test(pin))return err.textContent="비밀번호는 숫자 5자리예요.";
   $("#loginBtn").disabled=true;$("#loginBtn").textContent="들어가는 중…";
-  const r=await api("login",{num,name,pin});
+  const r=await api("login",{grade,cls,num,name,pin});
   $("#loginBtn").disabled=false;$("#loginBtn").textContent="입장하기";
   if(r.error)return err.textContent=r.error;
   enter(r);
 });
 function enter(r){
-  S.token=r.token||S.token;S.num=r.num;S.name=r.name;S.submittedAt=r.submittedAt||null;
+  S.token=r.token||S.token;S.grade=r.grade;S.cls=r.cls;S.num=r.num;S.name=r.name;S.submittedAt=r.submittedAt||null;
   S.progress=Object.assign(blank(),r.progress||{});
-  ls.set("fj_session",{token:S.token,num:S.num,name:S.name});
-  $("#whoName").textContent=`${S.num}번 ${S.name}`;
+  ls.set("fj_session",{token:S.token,grade:S.grade,cls:S.cls,num:S.num,name:S.name});
+  $("#whoName").textContent=`${S.grade}학년 ${S.cls}반 ${S.num}번 ${S.name}`;
   show("vStudent");buildStep1();go(S.progress.step||1,true);
 }
 $("#logout").onclick=()=>{flushSave();ls.del("fj_session");S={token:null};$("#inPin").value="";show("vLogin");};
 (async function(){
   const sess=ls.get("fj_session");
-  if(sess&&sess.token){$("#inNum").value=sess.num||"";$("#inName").value=sess.name||"";
+  if(sess&&sess.token){if(sess.grade)$("#inGrade").value=sess.grade;$("#inCls").value=sess.cls||"";$("#inNum").value=sess.num||"";$("#inName").value=sess.name||"";
     const r=await api("resume",{token:sess.token});if(!r.error){S.token=sess.token;enter(r);return;}}
   show("vLogin");
 })();
@@ -533,33 +543,41 @@ $("#tForm").addEventListener("submit",async e=>{
 });
 $("#tLogout").onclick=()=>{teacherPw=null;show("vLogin");};
 $("#tRefresh").onclick=async()=>{const r=await api("teacherList",{password:teacherPw});if(r.error)return;renderTeacher(r.students);};
-function renderTeacher(list){
+let tList=[],tFilter="all";
+function renderTeacher(list){if(list)tList=list;list=tList;
+  const cl=[...new Set(tList.map(x=>x.grade?`${x.grade}-${x.cls}`:"?"))];const cf=$("#cfilter");cf.innerHTML="";
+  if(cl.length>1){[["all","전체"]].concat(cl.map(k=>[k,k==="?"?"반 미입력":k.replace("-","학년 ")+"반"])).forEach(([k,l])=>{const b=el("button","mini"+(tFilter===k?" on":""),l);b.type="button";b.onclick=()=>{tFilter=k;renderTeacher();};cf.appendChild(b);});}
+  if(tFilter!=="all")list=list.filter(x=>(x.grade?`${x.grade}-${x.cls}`:"?")===tFilter);
   const sub=list.filter(x=>x.submittedAt).length;
   $("#tsum").innerHTML="";[["전체",list.length],["제출 완료",sub],["진행 중",list.length-sub]].forEach(([k,v])=>{const d=el("div");d.append(document.createTextNode(k+" "),el("b",null,v),document.createTextNode("명"));$("#tsum").appendChild(d);});
   const tb=$("#tbody");tb.innerHTML="";
-  if(!list.length){const tr=el("tr");const td=el("td",null,"아직 들어온 학생이 없어요.");td.colSpan=7;tr.appendChild(td);tb.appendChild(tr);return;}
+  if(!list.length){const tr=el("tr");const td=el("td",null,"아직 들어온 학생이 없어요.");td.colSpan=8;tr.appendChild(td);tb.appendChild(tr);return;}
   list.forEach(x=>{
     const p=x.progress||blank();const n=(p.s||[]).filter(s=>s&&s.trim()).length;
     const tr=el("tr");
-    tr.append(el("td","num",x.num),el("td",null,x.name));
+    tr.append(el("td",null,x.grade?`${x.grade}학년 ${x.cls}반`:"(반 미입력)"),el("td","num",x.num),el("td",null,x.name));
     const st=el("td");st.appendChild(el("span","pill "+(x.submittedAt?"ok":"wip"),x.submittedAt?"제출":`${p.step||1}단계`));tr.appendChild(st);
     tr.append(el("td",null,`${n} / 5`),el("td","muted",x.updated||""),el("td",null,x.submittedAt||"—"));
     const act=el("td");const a=el("div","acts");
-    const bS=el("button","mini","대본"),bP=el("button","mini","▶ 듣기"),bX=el("button","mini","비밀번호 초기화");[bS,bP,bX].forEach(b=>{b.type="button";a.appendChild(b);});
+    const bS=el("button","mini","대본"),bP=el("button","mini","▶ 듣기"),bX=el("button","mini","비밀번호 초기화"),bD=el("button","mini warn","기록 삭제");[bS,bP,bX,bD].forEach(b=>{b.type="button";a.appendChild(b);});
     bP.disabled=!x.hasAudio;act.appendChild(a);tr.appendChild(act);tb.appendChild(tr);
-    const dt=el("tr","detail");dt.hidden=true;const dd=el("td");dd.colSpan=7;dt.appendChild(dd);tb.appendChild(dt);
+    const dt=el("tr","detail");dt.hidden=true;const dd=el("td");dd.colSpan=8;dt.appendChild(dd);tb.appendChild(dt);
     bS.onclick=()=>{dt.hidden=!dt.hidden;if(dd.childNodes.length)return;
       dd.appendChild(el("div","muted","직업: "+(p.job||"(미입력)")+(x.script?" · 아래는 제출할 때의 대본이에요":" · 아직 제출 전, 지금까지 쓴 문장이에요")));
       if(x.script)x.script.split("\n").forEach(line=>dd.appendChild(el("p",null,line)));
       else (p.s||[]).forEach((s,i)=>dd.appendChild(el("p",null,`${SENT[i].no} ${s||"(비어 있음)"}`)));};
     bP.onclick=async()=>{bP.disabled=true;bP.textContent="불러오는 중…";
-      const r=await api("teacherAudio",{password:teacherPw,num:x.num});bP.disabled=false;bP.textContent="▶ 듣기";
+      const r=await api("teacherAudio",{password:teacherPw,grade:x.grade,cls:x.cls,num:x.num,name:x.name});bP.disabled=false;bP.textContent="▶ 듣기";
       dt.hidden=false;if(r.error){dd.appendChild(el("div","err",r.error));return;}
       const bin=atob(r.audio),u8=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)u8[k]=bin.charCodeAt(k);
       const au=el("audio");au.controls=true;au.src=URL.createObjectURL(new Blob([u8],{type:r.mime||"audio/webm"}));dd.prepend(au);au.play().catch(()=>{});};
     bX.onclick=async()=>{
       if(!bX.dataset.sure){bX.dataset.sure="1";bX.textContent="정말 초기화? 한 번 더";return;}
-      const r=await api("teacherReset",{password:teacherPw,num:x.num});bX.textContent=r.error?"실패":"초기화 완료";bX.disabled=true;};
+      const r=await api("teacherReset",{password:teacherPw,grade:x.grade,cls:x.cls,num:x.num,name:x.name});bX.textContent=r.error?"실패":"초기화 완료";bX.disabled=true;};
+    bD.onclick=async()=>{
+      if(!bD.dataset.sure){bD.dataset.sure="1";bD.textContent="녹음까지 삭제돼요. 정말? 한 번 더";return;}
+      bD.disabled=true;const r=await api("teacherDelete",{password:teacherPw,grade:x.grade,cls:x.cls,num:x.num,name:x.name});
+      if(r.error){bD.textContent="실패";return;}const r2=await api("teacherList",{password:teacherPw});if(!r2.error)renderTeacher(r2.students);};
   });
 }
 </script>
